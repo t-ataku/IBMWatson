@@ -1,0 +1,11 @@
+{
+  "translations" : [ {
+    "translation" : "Hello, world!"
+  }, {
+    "translation" : "How are you today?"
+  }, {
+    "translation" : ""
+  } ],
+  "word_count" : 9,
+  "character_count" : 31
+}
