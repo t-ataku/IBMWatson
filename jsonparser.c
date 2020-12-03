@@ -7,15 +7,17 @@
 #define LX_ERROR -1
 #define LX_OPEN_LIST 1
 #define LX_CLOSE_LIST 2
-#define LX_OPEN_BRACKET 3
-#define LX_CLOSE_BRACKET 4
+#define LX_OPEN_ARRAY 3
+#define LX_CLOSE_ARRAY 4
 #define LX_COLON 5
 #define LX_COMMA 6
 #define LX_DQUOTE 7
 #define LX_CHAR 8
 #define LX_STRING 9
 
-/*LEX part*/
+/*********************************
+         LEX Part
+ *********************************/
 struct lex_entry_t {
   int type;
   char *value;
@@ -30,13 +32,18 @@ struct lex_entry_t *create_lex_type(int type, const char *value, size_t len)
     exit(1);
   }
   entry->type = type;
-  if (type == LX_STRING) {
+  switch (type) {
+  case LX_STRING:
     if ((entry->value = malloc(len + 1)) == NULL) {
       fprintf(stderr, "malloc(%lu) in create_lex_type\n", sizeof(struct lex_entry_t));
       exit(1);
     }
     strncpy(entry->value, value, len);
     entry->value[len] = '\0';
+    break;
+  case LX_CHAR:
+    entry->value = (char *)value;
+    break;
   }
   return entry;
 }
@@ -46,8 +53,28 @@ void dump_lexentry(struct lex_entry_t *entry)
   while (entry) {
     switch (entry->type) {
     case LX_STRING:
-      printf("Type: %d\n", entry->type);
-      printf("    Value: %s\n", entry->value);
+      printf("Type: STRING(%d), Value: %s\n", entry->type, entry->value);
+      break;
+    case LX_CHAR:
+      printf("Type: CHAR(%d), Value: '%c'\n", entry->type, (char)entry->value);
+      break;
+    case LX_OPEN_LIST:
+      printf("Type: OPENLIST(%d)\n", entry->type);
+      break;
+    case LX_CLOSE_LIST:
+      printf("Type: CLOSELIST(%d)\n", entry->type);
+      break;
+    case LX_OPEN_ARRAY:
+      printf("Type: OPEN_ARRAY(%d)\n", entry->type);
+      break;
+    case LX_CLOSE_ARRAY:
+      printf("Type: CLOSE_ARRAY(%d)\n", entry->type);
+      break;
+    case LX_COLON:
+      printf("Type: COLON(%d)\n", entry->type);
+      break;
+    case LX_COMMA:
+      printf("Type: COMMA(%d)\n", entry->type);
       break;
     default:
       printf("Type: %d\n", entry->type);
@@ -57,28 +84,7 @@ void dump_lexentry(struct lex_entry_t *entry)
   }
 }
 
-/* PARSER part */
-/*****************
- Meanings of VALUE
-   Ptr to Array
-******************/
-struct json_tag_t {
-  char *key;
-  int type;
-  void *value;
-};
-struct json_list_t {
-  struct json_tag_t tag;
-  struct json_tag_t *next;
-} list;
-struct json_array_t {
-  void *value;
-  size_t cnt;
-  size_t size;
-} array;
 
-int lx_type;
-int lx_char_value;
 char *lx_value;
 char *lx_value_end;
 
@@ -155,9 +161,9 @@ int gettoken(FILE *fp)
     case '}':
       return LX_CLOSE_LIST;
     case '[':
-      return LX_OPEN_BRACKET;
+      return LX_OPEN_ARRAY;
     case ']':
-      return LX_CLOSE_BRACKET;
+      return LX_CLOSE_ARRAY;
     case ':':
       return LX_COLON;
     case ',':
@@ -168,19 +174,60 @@ int gettoken(FILE *fp)
       lx_value_end = strvalend;
       return LX_STRING;
     default:
-      lx_type = LX_CHAR;
-      lx_char_value = c;
-      break;
+      lx_value = (char *)c;
+      return LX_CHAR;
     }
   }
   return LX_ERROR;
 }
 
-int main(int argc, char *argv[])
+struct lex_entry_t *lxmain(FILE *fp)
 {
   int type;
-  FILE *fp;
   struct lex_entry_t top, *next;
+
+  next = &top;
+  next->next = NULL;
+  while ((type = gettoken(fp)) != LX_ERROR) {
+    struct lex_entry_t *entry;
+    
+    entry = create_lex_type(type, lx_value, lx_value_end - lx_value);
+    lxreset();
+    next->next = entry;
+    next = next->next;
+    next->next = NULL;
+  }
+
+  return top.next;
+}
+
+/*********************************
+         PARSER Part
+ *********************************/
+
+/*****************
+ Meanings of VALUE
+   Ptr to Array
+******************/
+struct json_tag_t {
+  char *key;
+  int type;
+  void *value;
+};
+struct json_list_t {
+  struct json_tag_t tag;
+  struct json_tag_t *next;
+} list;
+struct json_array_t {
+  void *value;
+  size_t cnt;
+  size_t size;
+} array;
+
+int main(int argc, char *argv[])
+{
+  FILE *fp;
+  struct lex_entry_t top;
 
   if (argc > 1) {
     if ((fp = fopen(argv[1], "r")) == NULL) {
@@ -190,16 +237,7 @@ int main(int argc, char *argv[])
   } else
     fp = stdin;
 
-  next = &top;
-  next->next = NULL;
-  while ((type = gettoken(fp)) != LX_ERROR) {
-    struct lex_entry_t *entry;
-    
-    entry = create_lex_type(type, lx_value, lx_value_end - lx_value);
-    next->next = entry;
-    next = next->next;
-    next->next = NULL;
-  }
+  top.next = lxmain(fp);
 
   dump_lexentry(top.next);
 }

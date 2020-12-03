@@ -10,7 +10,7 @@ function getlanguages {
     curl -u "apikey:$(cat pwd)" -X GET $URLBASE/$URLLIST | less
 }
 
-while getopts "i:o:f:r:l" opt $@; do
+while getopts "di:o:f:r:l" opt $@; do
     echo "\$opt=" $opt; echo "OPTARG=" $OPTARG
     echo "OPTIND=" $OPTIND
     case $opt in
