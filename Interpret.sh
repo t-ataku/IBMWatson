@@ -3,6 +3,7 @@
 # -i : 
 
 URLBASE='https://api.eu-gb.language-translator.watson.cloud.ibm.com/instances/4a0c71d6-2c45-4435-966c-f55fc040522a'
+#URLBASE='http://localhost:9025'
 URLLIST='v3/languages?version=2018-05-01'
 URLDO='v3/translate?version=2018-05-01'
 
@@ -57,7 +58,7 @@ cat >> $$.txt <<EOF
 }
 EOF
 
-curl -X POST -o $ofile -u "apikey:$(cat pwd)" --header "Content-Type: application/json" --data @$$.txt $URLBASE/$URLDO
+curl -v -X POST -o $ofile -u "apikey:$(cat pwd)" --header "Content-Type: application/json" --header 'Accept-Encoding: gzip,deflate' --header "Accept-Language: en-us" --data @$$.txt $URLBASE/$URLDO
 
 if [ ! "$dbg" ]; then
     /bin/rm -f $$.txt

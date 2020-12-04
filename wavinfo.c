@@ -82,6 +82,22 @@ int readwavdata(const char fname[])
     return 0;
 }
 
+void newwavdata()
+{
+    FILE *fp;
+
+    if ((fp = fopen("newwav.wav", "w")) == NULL) {
+        perror("fopen");
+        return;
+    }
+
+    if (fwrite(wavdata, wavdatalen, 1, fp) != 1) {
+        perror("fwrite");
+    }
+
+    fclose(fp);
+}
+
 char *gettag()
 {
     static char tag[4];
@@ -114,6 +130,19 @@ int getlength(unsigned long *length)
     return 0;
 }
 
+void resetlength(unsigned long length)
+{
+    p -= 4;
+    *p++ = (length & 0xff);
+    length = length >> 8;
+    *p++ = (length & 0xff);
+    length = length >> 8;
+    *p++ = (length & 0xff);
+    length = length >> 8;
+    *p++ = (length & 0xff);
+    length = length >> 8;
+}
+
 typedef enum {
     TAG_RIFF = 1, TAG_WAVE, TAG_JUNK, TAG_fmt, TAG_LIST, TAG_END = -1
 } tag_t;
@@ -125,29 +154,39 @@ tag_t gettagid()
 
 int main(int argc, char *argv[])
 {
-    FILE *fp;
+//    FILE *fp;
+    int rc;
+    int isfix;
 
     if (readwavdata(argv[1]) != 0) {
         return 1;
     }
 
+    rc = 0;
+    isfix = 0;
     while (getrestdatalen() > 0) {
         char *tag;
         unsigned long size;
 
-        if ((tag = gettag()) == NULL)
+        if ((tag = gettag()) == NULL) {
+            rc = 1;
             break;
+        }
         if (strncmp(tag, "WAVE", 4) == 0) {
             printf("TAG: %.4s\n", tag);
         } else {
-            if (getlength(&size))
+            if (getlength(&size)) {
+                rc = 1;
                 break;
+            }
             if (strncmp(tag, "RIFF", 4) == 0) {
                 if (size == getrestdatalen()) {
                     printf("TAG: %.4s(%lu)\n", tag, size);
                 }
                 else {
                     printf("TAG: %.4s(%lu)<== Should be %lu\n", tag, size, getrestdatalen());
+		    resetlength(getrestdatalen());
+                    isfix = 1;
                 }
                 if (strncmp(tag, "RIFF", 4) == 0) {
                     p += 0;
@@ -160,11 +199,17 @@ int main(int argc, char *argv[])
                 } else {
                     printf("TAG: %.4s(%lu)<== less than %lu\n", tag, size, getrestdatalen());
                     size = getrestdatalen();
+		    resetlength(size);
+                    isfix = 1;
                 }
                 p += size;
             }
         }
     }
 
-    fclose(fp);
+    if (isfix) {
+        newwavdata();
+    }
+
+    return rc;
 }

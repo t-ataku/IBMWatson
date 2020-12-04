@@ -10,16 +10,19 @@
 # }
 
 URLBASE=http://localhost:8443/
-URLBASE=https://gateway-lon.watsonplatform.net/text-to-speech/api/v1/synthesize
+URLBASE=https://api.eu-gb.text-to-speech.watson.cloud.ibm.com/instances/9df76f31-1f98-40d3-890e-c0a7cbda962e/v1/synthesize
+#https://gateway-lon.watsonplatform.net/text-to-speech/api/v1/synthesize
 
 function getvoicename {
-    case "$1" in
-	"en-US")
-	    echo "en-US_LisaVoice";;
-	"ja-JP")
-	    echo "ja-JP_EmiVoice";;
+    case $1 in
+	en-US)
+		echo "en-US_LisaVoice";
+		;;
+	ja-JP)
+		echo "ja-JP_EmiVoice";
+		;;
 	*)
-	    echo "en-US_LisaVoice";;
+	    exit 1;;
     esac
     return 0
 }
@@ -41,16 +44,30 @@ while getopts "l:o:" opt $@; do
 done
 echo "OPTIND=" $OPTIND
 
+if [ -z "$voice" -o -z "$ofile" ]; then
+	echo not enough parameter >&2
+	exit 1
+fi
 
 #curl -v -X POST -u "apikey:xxxxxxxx" --header "Content-Type: application/json" --header "Accept: audio/wav" --data "{\"text\":\"Hello, I'm Lisa.\"}" --output $1_0.wav $URLBASE
 
 #echo "{\"text\":\"Hello, I'm Lisa.\"}" > data1.dat
 #curl -X POST -u "apikey:xxxxxxxx" --header "Content-Type: application/json" --header "Accept: audio/wav" --data @data1.dat --output $1_1.wav $URLBASE
 
-cat > data.dat <<EOF
-{
-  "Voice": "en-US_LisaVoice",
-  "Text": "The following commands use the POST /v1/synthesize method to synthesize US English input to audio files in two different formats. Both requests use the default US English voice, en-US_MichaelVoice."
+awk '
+BEGIN {
+	print "{"
 }
-EOF
-curl -v -X POST -u "apikey:xxxxxxxx" --header "Content-Type: application/json" --header "Accept: audio/wav" --data @data.dat --output $1_2.wav $URLBASE
+
+/"translation"/ {
+	gsub(/^[^:]+: "/, "");
+	gsub(/"[ 	]*$/, "");
+	msg=msg $0
+}
+
+END {
+	printf("\"text\": \"%s\"\n", msg);
+	print "}"
+}
+' > data.dat
+curl -v -X POST -u "apikey:$(cat sppwd)" --header "Content-Type: application/json" --header "Accept: audio/wav" --data @data.dat --output $ofile ${URLBASE}'?'voice=$voice
