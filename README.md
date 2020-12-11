@@ -31,10 +31,16 @@ You need create WATSON "Text to Speach" service, re-write [URLBASE] environment 
 
 Options are
 -v: List languages and voice information supported
--l: Language to select.  It must be one of "en", "ja", "ko" and "zh".
--o: Audio filename to output.
+-l: Language to select.  It must be one of "en", "ja", "ko" and "zh"
+-o: Audio filename to output
+
+# EXAMPLE
+
+$ Speak.sh -v
+$ cat bgc_ja.json | Speak.sh -l ja -o bcg_ja.wav 
+
 ------------------------------------------
-#NAME  wavinfo.c
+# NAME  wavinfo.c
 WATSON creates WAV file with undefined data size (0xffffffff) in the RIFF (WAV) file.
 Apple Quick Time player doesn't accept such file so that you must define those fields before playing.
 You need C Compiler which is in Xcode to use it.
